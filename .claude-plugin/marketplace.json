@@ -1,0 +1,22 @@
+{
+  "name": "deepgem-config",
+  "owner": {
+    "name": "DeepGem Interactive",
+    "url": "https://deepgem.com"
+  },
+  "metadata": {
+    "description": "Claude Code skills for DeepGem Interactive's project management methodology",
+    "version": "1.0.0",
+    "license": "MIT",
+    "repository": "https://github.com/DeepGem-Interactive/deepgem-coding-config"
+  },
+  "plugins": [
+    {
+      "name": "deepgem-coding-config",
+      "source": "./plugins/deepgem-coding-config",
+      "description": "SOW generation from meeting notes, PM workflow automation",
+      "version": "1.0.0",
+      "tags": ["pm", "sow", "project-management", "deepgem"]
+    }
+  ]
+}

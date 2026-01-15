@@ -1,0 +1,11 @@
+{
+  "name": "deepgem-coding-config",
+  "version": "1.0.0",
+  "description": "Claude Code skills for DeepGem Interactive's project management - SOW generation from meeting notes",
+  "author": {
+    "name": "DeepGem Interactive",
+    "url": "https://deepgem.com"
+  },
+  "license": "MIT",
+  "keywords": ["pm", "sow", "project-management", "deepgem", "statement-of-work"]
+}

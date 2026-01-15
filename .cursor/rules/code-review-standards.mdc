@@ -1,0 +1,69 @@
+---
+description: When doing code reviews
+alwaysApply: false
+version: 1.1.0
+---
+
+# Code Review Standards
+
+This rule defines when bot feedback is incorrect given context bots lack. Use this to
+identify suggestions that don't apply, not to skip valid feedback based on priority.
+
+## Core Philosophy
+
+Address all suggestions where the bot's analysis is correct given full context. Decline
+when you can articulate why the bot's reasoning doesn't hold - valid declines explain
+why the analysis is incorrect, not why addressing it is inconvenient.
+
+## When Bot Suggestions Don't Apply
+
+These patterns describe situations where bot analysis is typically incorrect. Decline
+with explanation when you can demonstrate the bot's reasoning doesn't hold.
+
+### Single-Use Values
+
+Bots flag inline values as "magic strings" needing extraction. This suggestion is wrong
+when the value appears exactly once and context makes the meaning clear. Extracting
+`METHOD_INITIALIZE = "initialize"` for a single use adds indirection without DRY
+benefit. Constants exist to stay DRY across multiple uses, not to avoid inline values.
+
+### Theoretical Race Conditions
+
+Bots flag potential race conditions based on static analysis. This suggestion is wrong
+when operations are already serialized by a queue, mutex, or transaction the bot can't
+see. Add synchronization when profiling or testing reveals actual race conditions.
+
+### Redundant Type Safety
+
+Bots suggest stricter types or null checks. This suggestion is wrong when runtime
+validation already handles the case correctly, or when the type system guarantees the
+condition can't occur. TypeScript serves the code - working code with runtime safety
+takes priority over compile-time type perfection.
+
+### Premature Optimization
+
+Bots flag performance concerns without data. This suggestion is wrong when no profiling
+shows actual performance problems. Optimize based on measurements - complexity should
+yield measurable performance gains.
+
+## Items Requiring Case-by-Case Judgment
+
+These require evaluation in context - sometimes the bot is right, sometimes wrong.
+
+### Test Coverage Gaps
+
+Bot requests for edge case tests: Address if the edge case could reasonably occur and
+cause user-facing issues. Decline if you can demonstrate the scenario is already handled
+by other validation or genuinely can't occur given system constraints.
+
+### Documentation Requests
+
+Bot requests for additional docs: Address if the code is genuinely unclear. Decline if
+the documentation would merely restate what the code already says clearly.
+
+### Accessibility Improvements
+
+Accessibility (ARIA labels, keyboard navigation, screen reader support) is a product
+priority decision that varies by project. Check project or user configuration for the
+team's stance. If no stance is declared, present the suggestion to the user with context
+about the scope and ask whether to address or decline.
