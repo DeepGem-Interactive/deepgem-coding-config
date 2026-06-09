@@ -1,11 +1,11 @@
 {
   "name": "deepgem-coding-config",
-  "version": "1.0.0",
-  "description": "Claude Code skills for DeepGem Interactive's project management - SOW generation from meeting notes",
+  "version": "1.1.0",
+  "description": "Claude Code plugin for DeepGem Interactive - SOW generation, QA review orchestration, evidence-anchored code audits, and a multi-agent tmux orchestrator (/orch, /monitor, /dispatch)",
   "author": {
     "name": "DeepGem Interactive",
     "url": "https://deepgem.com"
   },
   "license": "MIT",
-  "keywords": ["pm", "sow", "project-management", "deepgem", "statement-of-work"]
+  "keywords": ["pm", "sow", "sprint", "project-management", "deepgem", "statement-of-work", "sprint-plan", "qa", "quality-assurance", "code-review", "code-audit", "audit", "orchestrator", "tmux", "multi-agent", "coordinator"]
 }
