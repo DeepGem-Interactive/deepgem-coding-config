@@ -37,7 +37,17 @@ export interface Task {
   result: AgentResult | null;
   /** Last error / blocker reason. */
   error: string | null;
+  /** Linear issue id mirroring this task, once created. */
+  linearIssueId: string | null;
   updatedAt: number;
+}
+
+/** A human's decision on a task parked in human_review (or blocked). */
+export interface HumanVerdict {
+  taskId: string;
+  verdict: "approve" | "changes";
+  /** For "changes": the human's comment describing what to fix. */
+  comment: string | null;
 }
 
 export interface Run {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { startRun, resumeRun, statusReport } from "./bootstrap.js";
+import { startRun, resumeRun, serveRun, statusReport } from "./bootstrap.js";
 import { configureLogger, log } from "./logger.js";
 
 const program = new Command();
@@ -49,6 +49,42 @@ program
     configureLogger({ jsonlPath: `${o.repo}/.dgorch/run.jsonl`, level: "info" });
     const { runId, outcome } = await resumeRun(o.repo, o.run, { fake: o.fake, dbPath: o.db });
     printOutcome(runId, outcome.stopReason, outcome.stats);
+  });
+
+program
+  .command("serve")
+  .description("Long-running mode: execute the run and keep watching Linear for human verdicts")
+  .requiredOption("--repo <path>", "git repo to work in")
+  .option("--prd <path>", "PRD file (to start a new run)")
+  .option("--run <id>", "existing run id (to resume in serve mode)")
+  .option("--goal <text>", "one-line goal", "Implement the PRD")
+  .option("--db <path>", "state db path")
+  .option("--poll-sec <n>", "seconds between Linear verdict polls", (v) => parseInt(v, 10), 120)
+  .option("--webhook-port <n>", "listen for Linear webhooks on this port", (v) => parseInt(v, 10))
+  .option("--concurrency <n>", "max parallel workers", (v) => parseInt(v, 10))
+  .option("--cost-cap <tokens>", "hard output-token ceiling", (v) => parseInt(v, 10))
+  .option("--fake", "dry run with the fake worker", false)
+  .option("--plan <path>", "literal task plan JSON (required with --fake)")
+  .action(async (o) => {
+    if (!o.prd && !o.run) throw new Error("serve needs --prd (new run) or --run (resume)");
+    configureLogger({ jsonlPath: `${o.repo}/.dgorch/run.jsonl`, level: "info" });
+    const { runId, outcome } = await serveRun({
+      repoPath: o.repo,
+      prdPath: o.prd ?? "",
+      goal: o.goal,
+      runId: o.run,
+      dbPath: o.db,
+      fake: o.fake,
+      planPath: o.plan,
+      pollSec: o.pollSec,
+      webhookPort: o.webhookPort,
+      webhookSecret: process.env.LINEAR_WEBHOOK_SECRET,
+      configOverrides: {
+        ...(o.concurrency ? { concurrency: o.concurrency } : {}),
+        ...(o.costCap ? { costCap: o.costCap } : {}),
+      },
+    });
+    process.stdout.write(`\nrun ${runId}\nserve stop: ${outcome.stopReason} after ${outcome.cycles} cycle(s)\n`);
   });
 
 program

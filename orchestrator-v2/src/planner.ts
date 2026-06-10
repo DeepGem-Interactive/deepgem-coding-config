@@ -40,6 +40,7 @@ export function planToTasks(plan: Plan, runId: string): Task[] {
     branch: null,
     result: null,
     error: null,
+    linearIssueId: null,
     updatedAt: now,
   }));
 }

@@ -239,6 +239,9 @@ export class Conductor {
   }
 
   private toSpec(task: Task): TaskSpec {
+    // Durable lessons (from human rejections) + any seed lessons are injected
+    // into every brief — a lesson that isn't fed forward changes nothing.
+    const stored = this.store.listLessons(this.runId);
     return {
       id: task.id,
       title: task.title,
@@ -246,7 +249,7 @@ export class Conductor {
       acceptance: task.acceptance,
       files: task.files,
       assignee: task.assignee ?? "worker",
-      lessons: this.lessons,
+      lessons: [...new Set([...this.lessons, ...stored])],
     };
   }
 

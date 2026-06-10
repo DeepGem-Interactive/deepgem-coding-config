@@ -38,6 +38,7 @@ export function task(runId: string, over: Partial<Task> = {}): Task {
     branch: over.branch ?? null,
     result: over.result ?? null,
     error: over.error ?? null,
+    linearIssueId: over.linearIssueId ?? null,
     updatedAt: Date.now(),
   };
 }

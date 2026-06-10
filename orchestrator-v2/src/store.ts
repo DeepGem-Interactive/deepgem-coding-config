@@ -61,7 +61,20 @@ export class Store {
         payload TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_journal_run ON journal(run_id, seq);
+      CREATE TABLE IF NOT EXISTS lessons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_id TEXT NOT NULL,
+        rule TEXT NOT NULL,
+        source_task TEXT,
+        created_at INTEGER NOT NULL,
+        UNIQUE(run_id, rule)
+      );
     `);
+    // Additive migration for stores created before linear_issue_id existed.
+    const cols = this.db.prepare(`PRAGMA table_info(tasks)`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === "linear_issue_id")) {
+      this.db.exec(`ALTER TABLE tasks ADD COLUMN linear_issue_id TEXT`);
+    }
   }
 
   // ---- runs ---------------------------------------------------------------
@@ -96,8 +109,8 @@ export class Store {
 
   insertTasks(tasks: Task[]): void {
     const stmt = this.db.prepare(
-      `INSERT INTO tasks (id, run_id, title, description, acceptance, deps, files, user_visible, status, attempts, assignee, branch, result, error, updated_at)
-       VALUES (@id, @runId, @title, @description, @acceptance, @deps, @files, @userVisible, @status, @attempts, @assignee, @branch, @result, @error, @updatedAt)`,
+      `INSERT INTO tasks (id, run_id, title, description, acceptance, deps, files, user_visible, status, attempts, assignee, branch, result, error, linear_issue_id, updated_at)
+       VALUES (@id, @runId, @title, @description, @acceptance, @deps, @files, @userVisible, @status, @attempts, @assignee, @branch, @result, @error, @linearIssueId, @updatedAt)`,
     );
     const tx = this.db.transaction((rows: Task[]) => {
       for (const t of rows) stmt.run(taskToRow(t));
@@ -140,6 +153,30 @@ export class Store {
       this.appendJournalInTx(task.runId, eventType, { taskId, patch });
     });
     tx();
+  }
+
+  /** Record the Linear issue mirroring a task (persisted, survives restarts). */
+  setLinearIssue(taskId: string, issueId: string): void {
+    this.db.prepare(`UPDATE tasks SET linear_issue_id = ? WHERE id = ?`).run(issueId, taskId);
+  }
+
+  /** Amend a task's description (e.g. appending a human change request). */
+  amendDescription(taskId: string, description: string): void {
+    this.db.prepare(`UPDATE tasks SET description = ?, updated_at = ? WHERE id = ?`).run(description, Date.now(), taskId);
+  }
+
+  // ---- lessons --------------------------------------------------------------
+
+  /** Add a durable lesson (deduped on exact rule text per run). */
+  addLesson(runId: string, rule: string, sourceTask?: string): void {
+    this.db
+      .prepare(`INSERT OR IGNORE INTO lessons (run_id, rule, source_task, created_at) VALUES (?, ?, ?, ?)`)
+      .run(runId, rule, sourceTask ?? null, Date.now());
+  }
+
+  listLessons(runId: string): string[] {
+    const rows = this.db.prepare(`SELECT rule FROM lessons WHERE run_id = ? ORDER BY id`).all(runId) as { rule: string }[];
+    return rows.map((r) => r.rule);
   }
 
   // ---- journal ------------------------------------------------------------
@@ -193,6 +230,7 @@ interface TaskRow {
   branch: string | null;
   result: string | null;
   error: string | null;
+  linear_issue_id: string | null;
   updated_at: number;
 }
 interface JournalRow {
@@ -232,6 +270,7 @@ function rowToTask(r: TaskRow): Task {
     branch: r.branch,
     result: r.result ? (JSON.parse(r.result) as AgentResult) : null,
     error: r.error,
+    linearIssueId: r.linear_issue_id,
     updatedAt: r.updated_at,
   };
 }
@@ -252,6 +291,7 @@ function taskToRow(t: Task): Record<string, unknown> {
     branch: t.branch,
     result: t.result ? JSON.stringify(t.result) : null,
     error: t.error,
+    linearIssueId: t.linearIssueId,
     updatedAt: t.updatedAt,
   };
 }

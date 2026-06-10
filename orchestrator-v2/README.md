@@ -70,16 +70,24 @@ the real Linear mirror; `ORCH_WORKER_MODEL` / `ORCH_PLANNER_MODEL` pick models.
   journal, resume-by-state, idempotent transitions, crash-recovery test.
 - **Phase 3 (isolation + deterministic merge)** — done: worktree-per-worker,
   serialized merges, conflict-as-blocked-task.
-- **Phase 4 (event-driven + bounded)** — partial: cost caps + concurrency caps +
-  JSONL logging in; Linear *webhook* intake (replace human-review polling) is the
-  next slice.
-- **Phase 5 (portability + hardening)** — next: containerized workers, cloud-box
-  option, chaos tests.
+- **Phase 4 (event-driven + bounded)** — done: persistent Linear mirror
+  (`src/linear.ts`, issue mapping survives restarts), human-verdict intake
+  (`src/verdicts.ts`: Done→approve, In Progress+comment→fix task + durable
+  lesson), Linear webhook listener with HMAC verification (`src/webhook.ts`),
+  and `dgorch serve` — the long-running mode that keeps watching Linear and
+  applies verdicts the moment they appear. Cost/concurrency caps + JSONL logs.
+- **Phase 5 (portability + hardening)** — done in code: SDK bot reviewer with
+  fail-safe verdict parsing (`src/reviewer.ts`), container image
+  (`deploy/Dockerfile`), GCP VM provisioning + runbook (`deploy/`), and a chaos
+  suite (double-crash, crash-leak containment, post-completion idempotence,
+  file-scope serialization, journal forensics). The live cloud deploy itself is
+  operator-run — see `deploy/README.md`.
 
-### Notable seams for the next slices
-- `Reviewer` (`src/conductor.ts`) — drop in a real bot-review agent (diff +
-  design-fidelity) without touching the state machine; default auto-approves.
-- `Planner` (`src/planner.ts`) — `SdkPlanner` decomposes a PRD with structured
-  output; `FakePlanner` for tests.
-- `LinearSync` — add webhook-driven verdict intake so the human gate is push, not
-  poll.
+### The human loop in serve mode
+`dgorch serve --repo <repo> --prd <prd> [--webhook-port 8787] [--poll-sec 120]`
+1. Plans the PRD → creates Linear issues → executes tasks in parallel.
+2. User-visible work parks in **Human Review** in Linear.
+3. You approve (move to Done) or reject (move to In Progress + comment) **in
+   Linear**; the engine notices on its own — webhook poke or slow poll — applies
+   the verdict, turns rejection comments into fix tasks *and* durable lessons
+   injected into every later brief, and keeps going until everything is Done.
