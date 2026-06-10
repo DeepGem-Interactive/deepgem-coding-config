@@ -38,21 +38,24 @@ print(json.dumps({
 }))
 PY
 )
-  curl -sS -X POST "https://api.elevenlabs.io/v1/text-to-voice/design" \
+  resp="$(mktemp)"
+  code=$(curl -sS -o "$resp" -w '%{http_code}' -X POST "https://api.elevenlabs.io/v1/text-to-voice/design" \
     -H "xi-api-key: $ELEVENLABS_API_KEY" \
     -H "Content-Type: application/json" \
-    -d "$body" \
-  | python3 - "$OUT" "$name" <<'PY'
+    -d "$body" || echo "000")
+  if [ "$code" != "200" ]; then
+    echo "  ! HTTP $code:"; head -c 400 "$resp"; echo; rm -f "$resp"; return 0
+  fi
+  python3 - "$OUT" "$name" "$resp" <<'PY'
 import json, sys, base64, os
-out, name = sys.argv[1], sys.argv[2]
-raw = sys.stdin.read()
+out, name, path = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
-    data = json.loads(raw)
-except Exception:
-    print("  ! bad response:", raw[:300]); sys.exit(1)
+    data = json.load(open(path))
+except Exception as e:
+    print("  ! unparseable response:", e); raise SystemExit
 previews = data.get("previews") or []
 if not previews:
-    print("  ! no previews returned:", json.dumps(data)[:300]); sys.exit(1)
+    print("  ! no previews returned:", json.dumps(data)[:300]); raise SystemExit
 for i, p in enumerate(previews, 1):
     b64 = p.get("audio_base_64") or p.get("audio_base64")
     gid = p.get("generated_voice_id", "?")
@@ -61,6 +64,7 @@ for i, p in enumerate(previews, 1):
         f.write(base64.b64decode(b64))
     print(f"  ✓ {fn}   generated_voice_id={gid}")
 PY
+  rm -f "$resp"
 }
 
 # --- The crew. Keep descriptions/preview text in sync with the prompts doc. ---
