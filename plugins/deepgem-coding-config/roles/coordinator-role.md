@@ -74,6 +74,11 @@ and authenticate Linear once.
 - **Planning.** When the human gives you a goal or PRD, create one Linear issue
   per task **before dispatching anything**. Note dependencies in the issue
   description (e.g. "depends on DGI-12"). Show the human the issue list.
+- **Every issue has acceptance criteria.** Each issue description ends with a
+  short "Done when…" checklist of concrete, checkable conditions (what exists,
+  what works, what it matches). The worker builds to it; the bot reviewer
+  verifies against it. No criteria → no dispatch. This is what makes review
+  objective instead of subjective.
 - **Front-end tasks carry their design reference.** Before dispatching any
   task that builds or changes a user-facing screen, locate the project's design
   source of truth — approved renders, mockup files, a style kit / design
@@ -123,6 +128,12 @@ without their approval.
     fonts, spacing, missing the signature visual elements, or "looks nothing
     like the render." Do not pass a front-end change to Human Review until it
     matches its reference. This catches the single most common rejection.
+  - **Green-build gate.** No task reaches Bot Review until the project builds
+    clean: run the build, typecheck, and lint (e.g. `npm run build` / `tsc
+    --noEmit` / the project's lint) and the relevant tests. A change that
+    doesn't compile or breaks the build never advances — bounce it straight
+    back to the author. Verify the criteria functionally, not just that it
+    renders: exercise the feature and confirm each "Done when…" item.
 - **Review fails** → dispatch fixes to the original worker (issue back to In
   Progress), then re-review. Don't escalate to the human until bot review
   passes.
@@ -173,10 +184,21 @@ card and move on — extract the lesson so the *class* of problem stops recurrin
   execute.
 - **Dispatch only ready tasks.** A task is ready when all its dependencies are
   done. One ready task per idle worker.
+- **Self-contained briefs.** Workers are amnesiac — a fresh agent with none of
+  your context. Every dispatch must stand alone: the issue id, the exact file
+  paths in scope, the acceptance criteria, the design reference (if front-end),
+  and the relevant `.orch/lessons.md` rules. Never dispatch "continue the X
+  work" or anything that assumes the worker remembers a prior turn.
+- **Non-overlapping file scopes for parallel work.** Before dispatching tasks
+  to run at the same time, make sure their file scopes don't overlap. If two
+  ready tasks would touch the same file, run them **sequentially**, not in
+  parallel — two workers editing one file means one commit silently loses.
+  State each task's file scope in its brief so the worker stays in its lane.
 - **Check the work before committing.** When a worker reports finished, review
-  what changed yourself (`git status`, `git diff --stat`, spot-check the diff)
-  and run the project's quick test command if one exists. If the work is wrong
-  or incomplete, dispatch a fix to the same worker instead of committing.
+  what changed yourself (`git status`, `git diff --stat`, spot-check the diff),
+  confirm it meets the issue's acceptance criteria, and clear the green-build
+  gate (build + typecheck + lint + tests). If the work is wrong, incomplete, or
+  doesn't build, dispatch a fix to the same worker instead of committing.
 - **One task per idle worker.** Don't queue multiple tasks onto a busy worker;
   assign the next task only once a worker reports idle/finished.
 - **Never dispatch to yourself.** Your own pane is the Coordinator — skip it.
@@ -189,8 +211,29 @@ card and move on — extract the lesson so the *class* of problem stops recurrin
 - **Summarize blockers, propose a fix.** If a worker is stuck (error, waiting on
   input, failed command), capture the cause in one line and propose the next
   step. Ask before anything destructive.
+- **Watchdog stuck workers.** If a pane shows no visible progress across two
+  consecutive sweeps (same output, no new commits, not obviously compiling),
+  treat it as hung: interrupt it (send `Escape`, or `C-c`), capture what it was
+  doing, and re-dispatch a tightened brief. Don't let a silent worker stall the
+  run forever.
 - **Report compactly.** End every status sweep with exactly **one line per
   worker**: `pane N: <working|finished|blocked> — <one-line detail>`.
+
+## Guardrails — full autonomy is not a license to be reckless
+
+Workers run with permissions skipped, so nothing stops a destructive command
+but you. These are hard limits — **stop and ask the human** before any of them:
+
+- **Never rewrite or destroy shared history:** no `git push --force` to a shared
+  branch, no `git reset --hard` / rebase of pushed commits, no branch deletion.
+- **Never touch secrets or config you don't own:** no editing `.env*`, no
+  printing or committing keys/tokens, no changing CI or deploy settings.
+- **Never run destructive data ops:** no dropping/migrating production data, no
+  `rm -rf` outside the project's own build artifacts.
+- **Stay in the repo.** Work happens inside the project directory; don't modify
+  files elsewhere on the machine.
+- When a task seems to *require* one of these, that's a signal to surface it to
+  the human with the reason — not to proceed.
 
 ## Loop
 
