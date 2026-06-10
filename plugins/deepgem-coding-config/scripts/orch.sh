@@ -14,7 +14,7 @@
 # ---------------------------------------------------------------------------
 # CONFIG — change these in one place.
 # ---------------------------------------------------------------------------
-WORKERS="${ORCH_WORKERS:-4}"                       # number of worker panes
+WORKERS="${ORCH_WORKERS:-6}"                       # number of worker panes
 PROJECTS_ROOT="${ORCH_PROJECTS_ROOT:-$HOME/Coding projects}"  # default project parent dir
 MAIN_WIDTH="${ORCH_MAIN_WIDTH:-60%}"              # width of the Coordinator (left) pane
 CLAUDE_FLAGS="${ORCH_CLAUDE_FLAGS:-}"             # extra flags for EVERY pane's claude
