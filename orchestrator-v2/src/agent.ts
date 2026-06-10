@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import type { AgentResult, TaskSpec } from "./types.js";
 import { runClaude } from "./claude-cli.js";
+import { git } from "./exec.js";
 import { log } from "./logger.js";
 
 /**
@@ -48,24 +49,43 @@ export class CliAgentRunner implements AgentRunner {
   constructor(
     private model?: string,
     private timeoutMs = 20 * 60 * 1000,
+    /** Internal forceful retries when the agent edits nothing. */
+    private maxEditAttempts = 3,
   ) {}
 
   async run(spec: TaskSpec, workspace: string): Promise<AgentResult> {
-    const prompt = buildWorkerPrompt(spec);
-    const r = await runClaude(prompt, {
-      cwd: workspace,
-      model: this.model,
-      timeoutMs: this.timeoutMs,
-      allowEdits: true,
-    });
+    let costTokens = 0;
+    let lastText = "";
+    // The agent occasionally finishes having only DESCRIBED the work without
+    // writing files. The git worktree is the source of truth, so verify it
+    // changed; if not, retry with an escalating, forceful instruction.
+    for (let attempt = 1; attempt <= this.maxEditAttempts; attempt += 1) {
+      const prompt =
+        attempt === 1
+          ? buildWorkerPrompt(spec)
+          : `${buildWorkerPrompt(spec)}\n\nIMPORTANT: a previous attempt ended WITHOUT creating or editing any files — you only described the work. You MUST actually write the files now using your file-editing tools. Do not finish until the files exist on disk.`;
+      const r = await runClaude(prompt, { cwd: workspace, model: this.model, timeoutMs: this.timeoutMs, allowEdits: true });
+      costTokens += r.outputTokens;
+      lastText = r.text || lastText;
+      if (await workspaceChanged(workspace)) {
+        return { ok: true, summary: (r.text || "(no summary)").slice(0, 4000), filesChanged: [], costTokens };
+      }
+      log.warn("worker produced no file changes — retrying forcefully", { task: spec.id, attempt });
+    }
     return {
-      ok: r.ok,
-      summary: (r.text || "(no summary)").slice(0, 4000),
-      filesChanged: [], // worktree git diff is the source of truth, not self-report
-      costTokens: r.outputTokens,
-      error: r.ok ? undefined : r.text.slice(0, 300),
+      ok: false,
+      summary: (lastText || "(no summary)").slice(0, 4000),
+      filesChanged: [],
+      costTokens,
+      error: `worker produced no file changes after ${this.maxEditAttempts} attempts`,
     };
   }
+}
+
+/** True if the git worktree has any uncommitted change. */
+async function workspaceChanged(workspace: string): Promise<boolean> {
+  const st = await git(["status", "--porcelain"], workspace);
+  return st.stdout.trim().length > 0;
 }
 
 /**
