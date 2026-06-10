@@ -14,7 +14,7 @@
 # ---------------------------------------------------------------------------
 # CONFIG — change these in one place.
 # ---------------------------------------------------------------------------
-WORKERS="${ORCH_WORKERS:-3}"                       # number of worker panes
+WORKERS="${ORCH_WORKERS:-4}"                       # number of worker panes
 PROJECTS_ROOT="${ORCH_PROJECTS_ROOT:-$HOME/Coding projects}"  # default project parent dir
 MAIN_WIDTH="${ORCH_MAIN_WIDTH:-60%}"              # width of the Coordinator (left) pane
 CLAUDE_FLAGS="${ORCH_CLAUDE_FLAGS:-}"             # extra flags for EVERY pane's claude
@@ -22,10 +22,20 @@ CLAUDE_FLAGS="${ORCH_CLAUDE_FLAGS:-}"             # extra flags for EVERY pane's
 #   autonomy (no permission prompts in any pane), or "--permission-mode
 #   acceptEdits" to auto-approve edits only. Default: normal prompting.
 WORKER_CMD="${ORCH_WORKER_CMD:-claude${CLAUDE_FLAGS:+ $CLAUDE_FLAGS}}"  # worker startup command
-# Bobiverse worker roster (first worker = Bill). Keep in sync with the
-# "Crew identities" roster in roles/coordinator-role.md so Bob's mapping and
-# each worker's self-identity agree. Workers boot already knowing their name.
-ROSTER=(Bill Garfield Riker Homer Mario Luigi Marvin Khan)
+# Worker roster (first worker = Bender). Keep in sync with the "Crew
+# identities" roster in roles/coordinator-role.md so the Coordinator's mapping
+# and each worker's self-identity agree. Workers boot already knowing their
+# name and tone. TONES is index-aligned with ROSTER.
+ROSTER=(Bender Mario "C-3PO" Yoda Wheatley HAL KITT)
+TONES=(
+  "Your tone is brash and lazy-confident: one wisecrack, then the facts."
+  "Your tone is sunny and can-do, with an occasional cheerful flourish."
+  "Your tone is fretful and precise: you name risks and odds plainly."
+  "Your tone uses inverted Yoda syntax, terse and wise; keep it short."
+  "Your tone is an overconfident, bumbling British AI."
+  "Your tone is calm, eerily polite, and deadpan."
+  "Your tone is a smooth, dry, helpful car AI."
+)
 #   For git-worktree isolation per worker, swap WORKER_CMD to:
 #       WORKER_CMD="claude -w feat/\$PROJECT"
 #   (each worker then runs in its own worktree branch). See README.
@@ -105,7 +115,8 @@ for p in "${PANES[@]}"; do
     tmux send-keys -t "$WT.$p" "$ORCH_WORKER_CMD" Enter
   else
     NAME="${ROSTER[$wi]:-Clone$((wi + 1))}"
-    IDENTITY="You are ${NAME}, a worker clone in tmux pane ${p} of a Bobiverse multi-agent coding crew. The Coordinator (Bob) in pane 0 dispatches every task to you and is the only one who talks to the human; never expect input from the human directly. Do the task Bob gives you, stay strictly within the files in its stated scope, and report status concisely in this pane when you finish or get blocked. Bob owns Linear and git; you focus on the code. If asked who you are, you are ${NAME}."
+    TONE="${TONES[$wi]:-Your tone is concise and professional.}"
+    IDENTITY="You are ${NAME}, a worker in tmux pane ${p} of a multi-agent coding crew led by the Coordinator (Optimus Prime) in pane 0. Optimus dispatches every task and is the only one who talks to the human; never expect input from the human directly. ${TONE} Flavor is a garnish: at most one short in-character phrase per message, everything else plain, direct, and skimmable. Do the task Optimus gives you, stay strictly within the files in its stated scope, and report concisely when you finish or get blocked using the format Did / Files / Tested / Need. Optimus owns Linear and git; you focus on the code. If asked who you are, you are ${NAME}."
     tmux send-keys -t "$WT.$p" "claude${CLAUDE_FLAGS:+ $CLAUDE_FLAGS} --append-system-prompt \"$IDENTITY\"" Enter
   fi
   wi=$((wi + 1))
