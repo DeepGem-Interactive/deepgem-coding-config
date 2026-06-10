@@ -68,37 +68,103 @@ export class SdkPlanner implements Planner {
     } catch (e) {
       throw new Error("Agent SDK not installed; use --fake or install @anthropic-ai/claude-agent-sdk. " + String(e));
     }
-    const prompt = [
+    const basePrompt = [
       `Decompose this work into a set of independent, parallelizable coding tasks.`,
       `Goal: ${goal}`,
       ``,
       `PRD:`,
       prd.slice(0, 50_000),
       ``,
-      `Return ONLY JSON matching: { "tasks": [ { "key", "title", "description",`,
+      `Respond with ONLY a JSON object — no markdown fences, no prose before or after.`,
+      `Shape: { "tasks": [ { "key", "title", "description",`,
       `"acceptance": [string], "deps": [key], "files": [path], "userVisible": bool } ] }.`,
+      `Every string must be on a single line: use \\n escapes, NEVER literal newlines inside strings.`,
       `Keep tasks small and non-overlapping in files where possible. Order by dependency.`,
     ].join("\n");
 
-    let raw = "";
-    for await (const msg of query({ prompt, options: { permissionMode: "bypassPermissions", ...(this.model ? { model: this.model } : {}) } }) as AsyncIterable<{
-      type: string;
-      result?: string;
-    }>) {
-      if (msg.type === "result" && typeof msg.result === "string") raw = msg.result;
+    const MAX_TRIES = 3;
+    let lastError = "";
+    for (let attempt = 1; attempt <= MAX_TRIES; attempt += 1) {
+      const prompt =
+        attempt === 1
+          ? basePrompt
+          : `${basePrompt}\n\nYour previous reply could not be parsed (${lastError}). Reply again with ONLY the strict single-line-strings JSON object.`;
+      let raw = "";
+      for await (const msg of query({
+        prompt,
+        options: { permissionMode: "bypassPermissions", ...(this.model ? { model: this.model } : {}) },
+      }) as AsyncIterable<{ type: string; result?: string }>) {
+        if (msg.type === "result" && typeof msg.result === "string") raw = msg.result;
+      }
+      try {
+        const parsed = PlanSchema.parse(extractJson(raw));
+        log.info("planner produced tasks", { count: parsed.tasks.length, attempt });
+        return planToTasks(parsed, runId);
+      } catch (e) {
+        lastError = String(e).slice(0, 300);
+        log.warn("planner reply unparseable — retrying", { attempt, error: lastError });
+      }
     }
-    const json = extractJson(raw);
-    const parsed = PlanSchema.parse(json);
-    log.info("planner produced tasks", { count: parsed.tasks.length });
-    return planToTasks(parsed, runId);
+    throw new Error(`planner failed after ${MAX_TRIES} attempts: ${lastError}`);
   }
 }
 
-function extractJson(text: string): unknown {
+/**
+ * Pull the JSON object out of a model reply. Tolerates markdown fences and
+ * surrounding prose; repairs the most common LLM-JSON defect (raw control
+ * characters inside string literals) before giving up.
+ */
+export function extractJson(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const body = fenced ? fenced[1]! : text;
   const start = body.indexOf("{");
   const end = body.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("planner returned no JSON object");
-  return JSON.parse(body.slice(start, end + 1));
+  if (start === -1 || end === -1 || end <= start) throw new Error("planner returned no JSON object");
+  const slice = body.slice(start, end + 1);
+  try {
+    return JSON.parse(slice);
+  } catch {
+    return JSON.parse(repairJsonControlChars(slice));
+  }
+}
+
+/**
+ * Escape raw control characters that appear INSIDE string literals — the
+ * classic failure of LLM-emitted JSON ("Unterminated string"). Walks the text
+ * with a tiny state machine tracking string/escape state; structural
+ * whitespace outside strings is left untouched.
+ */
+export function repairJsonControlChars(text: string): string {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (const ch of text) {
+    if (inString) {
+      if (escaped) {
+        out += ch;
+        escaped = false;
+        continue;
+      }
+      if (ch === "\\") {
+        out += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') {
+        out += ch;
+        inString = false;
+        continue;
+      }
+      const code = ch.codePointAt(0)!;
+      if (code < 0x20) {
+        out += code === 10 ? "\\n" : code === 13 ? "\\r" : code === 9 ? "\\t" : `\\u${code.toString(16).padStart(4, "0")}`;
+        continue;
+      }
+      out += ch;
+    } else {
+      if (ch === '"') inString = true;
+      out += ch;
+    }
+  }
+  return out;
 }
