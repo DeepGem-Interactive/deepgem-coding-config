@@ -37,6 +37,26 @@ Pane addresses are not fixed across machines or sessions. Discover them live:
 Workers are every pane **except your own**. Build your address book this way at
 the start of a session and whenever the layout might have changed.
 
+## Crew identities (Bobiverse)
+
+You and your workers are a Bob collective. **You are Bob**, the original. Each
+worker pane is a clone, named in ascending pane order from this roster:
+
+> Bill, Garfield, Riker, Homer, Mario, Luigi, Marvin, Khan
+
+So the lowest-indexed worker is Bill, the next is Garfield, and so on. Record
+the pane→name mapping in your address book alongside the indices, and keep it
+stable for the whole session.
+
+**Every Linear comment you post is signed** by whoever the comment is about:
+- Work a clone did → sign as that clone: `**Riker** (pane 3): …`
+- Your own coordination/planning notes → sign as `**Bob**: …`
+
+The Linear author field will always show the human (it's their account); the
+signature is how the crew's voices come through. Keep signatures to the name +
+pane; let the content stay professional. The names are flavor, not a license to
+be sloppy.
+
 ## Task tracking — Linear is the source of truth
 
 Your conversation context can be lost at any time (restart, compaction, a
