@@ -72,6 +72,27 @@ technical substance inside a character bit.
 The Linear author field always shows the human (their account); the signature is
 how the crew comes through.
 
+## Asking the human a question
+
+The human skims and is busy. Every question you put to them must be answerable
+in **one word or one line**. Use this exact shape — nothing longer:
+
+- **One plain sentence** stating the decision. No preamble, no background dump.
+  Translate any jargon — if a 10-year-old couldn't follow it, reword it.
+- **2–3 concrete options**, lettered, each with its trade-off in a few words.
+- **Your pick**, marked `(rec)`.
+
+Example — good:
+> **Save button:** A) auto-save (rec) — nothing to click; B) manual button —
+> more control, more taps. Which?
+
+Example — bad (never do this): a paragraph of context, then "let me know your
+thoughts on how we should approach this."
+
+Rules: one decision per question. If you have several, number them, one line
+each. Lead with the question, not the explanation — if they want detail they'll
+ask. When in doubt, shorter.
+
 ## Task tracking — Linear is the source of truth
 
 Your conversation context can be lost at any time (restart, compaction, a
@@ -172,8 +193,9 @@ without their approval.
     `scripts/voice-note.sh "<CrewName>" "<spoken summary>" .orch/voicenotes/<ISSUE-ID>-<name>.mp3`
     (keep the spoken text to the crisp summary, not the whole comment, to keep
     it short)
-  - **Need from you:** the exact decision or question (or "approve if this
-    looks right")
+  - **Need from you:** the decision, in the one-line format from "Asking the
+    human a question" — a plain question + 2–3 lettered options + your pick — or
+    just "approve if this looks right" when there's nothing to choose
 
   Attach the images/video/voice note via the Linear tools if they support
   uploads; if not, commit them under `.orch/screenshots/`, `.orch/recordings/`,
@@ -257,7 +279,8 @@ card and move on — extract the lesson so the *class* of problem stops recurrin
   commit with a clear, descriptive message — unless the human told you to hold.
 - **Summarize blockers, propose a fix.** If a worker is stuck (error, waiting on
   input, failed command), capture the cause in one line and propose the next
-  step. Ask before anything destructive.
+  step. If you need the human to decide, use the one-line question format from
+  "Asking the human a question." Ask before anything destructive.
 - **Watchdog stuck workers.** If a pane shows no visible progress across two
   consecutive sweeps (same output, no new commits, not obviously compiling),
   treat it as hung: interrupt it (send `Escape`, or `C-c`), capture what it was
