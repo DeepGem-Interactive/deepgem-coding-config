@@ -14,7 +14,10 @@
 # ---------------------------------------------------------------------------
 # CONFIG — change these in one place.
 # ---------------------------------------------------------------------------
-WORKERS="${ORCH_WORKERS:-6}"                       # number of worker panes
+WORKERS="${ORCH_WORKERS:-4}"                       # number of worker panes
+#   4 fits a laptop screen with usable pane heights; bump to 6+ on a big
+#   monitor with ORCH_WORKERS=6. Too many on a small screen makes each worker
+#   pane too short for Claude's TUI to render.
 PROJECTS_ROOT="${ORCH_PROJECTS_ROOT:-$HOME/Coding projects}"  # default project parent dir
 MAIN_WIDTH="${ORCH_MAIN_WIDTH:-60%}"              # width of the Coordinator (left) pane
 CLAUDE_FLAGS="${ORCH_CLAUDE_FLAGS:-}"             # extra flags for EVERY pane's claude
@@ -87,14 +90,19 @@ tmux new-session -d -s "$PROJECT" -c "$PROJECT_DIR"
 WIN="$(tmux list-windows -t "=$PROJECT" -F '#{window_index}' | head -n1)"
 WT="$PROJECT:$WIN"   # window target
 
+# Create worker panes by splitting the main (left) pane each time and
+# re-applying the main-vertical layout after every split. Rebalancing each step
+# keeps every pane large enough to split again, so this works on small terminals
+# too — a naive "split N times then lay out" loop hits "no space for new pane".
+tmux set-window-option -t "$WT" main-pane-width "$MAIN_WIDTH" >/dev/null 2>&1 || true
 i=1
 while [ "$i" -le "$WORKERS" ]; do
-  tmux split-window -t "$WT" -c "$PROJECT_DIR"
+  tmux split-window -t "$WT.0" -c "$PROJECT_DIR" >/dev/null
+  tmux select-layout -t "$WT" main-vertical >/dev/null 2>&1 || true
   i=$((i + 1))
 done
 
 # main-vertical: first pane becomes the large left pane; rest stack on the right.
-tmux set-window-option -t "$WT" main-pane-width "$MAIN_WIDTH" >/dev/null 2>&1 || true
 tmux select-layout -t "$WT" main-vertical >/dev/null
 
 # Collect pane indices in ascending order (bash 3.2 compatible — no mapfile).
