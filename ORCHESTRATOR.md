@@ -13,9 +13,14 @@ You ──PRD──▶ Coordinator ──tasks──▶ Workers (×3)
                  │                      │
                  │◀──── /monitor ───────┘
                  ▼
-        verify → commit → next task
+   verify → commit → bot review (different worker)
                  ▼
-        Linear issues  (Todo → In Progress → Done)
+   Todo → In Progress → Bot Review → Human Review → Done
+                                    (backend skips ────▲)
+
+   Human Review (front-end, in the Linear app):
+     approve = drag to Done
+     deny    = drag to In Progress + comment what's wrong
 ```
 
 1. **Start:** in a terminal, run `tmux`, then `claude`, then
@@ -24,11 +29,15 @@ You ──PRD──▶ Coordinator ──tasks──▶ Workers (×3)
 2. **Brief it:** paste your PRD (or a file path to it) into the Coordinator pane.
    First time in a project it asks which Linear team to use, then creates one
    Linear issue per task, shows the plan, and starts dispatching.
-3. **Walk away.** The Coordinator polls workers every 1–2 minutes, verifies
-   finished work before committing, marks issues Done with the commit SHA, and
-   re-tasks idle workers. Watch it all live in Linear.
-4. **Check in:** ask the Coordinator "status?", run `/monitor`, or just open
-   Linear.
+3. **Walk away.** The Coordinator polls workers every 1–2 minutes, verifies and
+   commits finished work, then sends every change through **bot review** by a
+   different worker. Front-end changes get screenshots and an app walkthrough,
+   then land in **Human Review** for you. Backend changes that pass review go
+   straight to Done.
+4. **Review in Linear:** approve by dragging to Done; deny by dragging back to
+   In Progress with a comment — your comment becomes the fix task. If
+   everything is waiting on you, the Coordinator pauses; nudge it with "check
+   Linear" when you've reviewed.
 5. **Resume later:** rerun `/orch <project>` — it reattaches if the session is
    alive, rebuilds if not. Either way the Coordinator queries Linear for open
    issues and picks up where it left off. Issues you add or reprioritize in
@@ -59,6 +68,12 @@ You ──PRD──▶ Coordinator ──tasks──▶ Workers (×3)
 - **Linear auth (one time):** the Linear MCP server is configured at user
   scope. In any claude session run `/mcp`, pick **linear**, and complete the
   OAuth login. Coordinators handle the rest.
+- **Workflow states (one time per team):** add **Bot Review** and **Human
+  Review** states in Linear (Settings → Team → Workflow). The Coordinator
+  checks for them and will ask if they're missing.
+- **Screenshots in Linear:** the Coordinator attaches images directly if the
+  Linear tools support uploads; otherwise it commits them under
+  `.orch/screenshots/` and links the paths in the issue comment.
 - **Workers stuck at permission prompts?** Launch with
   `ORCH_WORKER_CMD="claude --permission-mode acceptEdits"` for fewer
   interruptions (workers can then edit files without asking each time).

@@ -47,13 +47,23 @@ and authenticate Linear once.
 - **Project setup (once per project).** Read `.orch/linear.md` in the working
   directory for the Linear team and project to use. If it doesn't exist, ask
   the human which Linear team this belongs to, create (or pick) a Linear
-  project for the work, and save both identifiers to `.orch/linear.md`.
+  project for the work, and save both identifiers to `.orch/linear.md`. Also
+  verify the team's workflow has **Bot Review** and **Human Review** states —
+  if missing, ask the human to add them once in Linear (Settings → Team →
+  Workflow) before you start dispatching.
 - **Planning.** When the human gives you a goal or PRD, create one Linear issue
   per task **before dispatching anything**. Note dependencies in the issue
   description (e.g. "depends on DGI-12"). Show the human the issue list.
 - **Status transitions.** Keep Linear current at every step:
   - dispatched → move the issue to **In Progress**; comment which pane has it
-  - verified + committed → move to **Done**; comment the commit SHA
+  - worker finished + your checks pass → commit → move to **Bot Review** and
+    dispatch the review (see Review pipeline below)
+  - bot review passed → user-visible/front-end change: move to **Human
+    Review** with screenshots and a summary comment; backend-only change:
+    move to **Done** with the commit SHA
+  - human moves a Human Review issue to **Done** = approved; human moves it
+    back to **In Progress** (their comment says what's wrong) = changes
+    requested → dispatch the fix from that comment
   - stuck → comment the blocker on the issue (apply a `blocked` label if the
     workspace has one) and surface it to the human
 - **Resume.** At the start of every session, read `.orch/linear.md` and query
@@ -64,7 +74,34 @@ and authenticate Linear once.
   line per task with id, status, dependencies) and tell the human; sync that
   state back into Linear when it's reachable again.
 
-## Operating rules
+## Review pipeline — bot review, then human review
+
+Nothing the human sees should be unreviewed, and nothing user-visible ships
+without their approval.
+
+- **Bot review (every task).** When an issue enters Bot Review, dispatch a
+  review task to an idle worker that is **not the author** (fresh eyes): review
+  the diff for correctness, regressions, and obvious style problems. For
+  user-visible/front-end changes the reviewer must also run the app, exercise
+  the changed screens, check the browser console for errors, sanity-check
+  responsiveness, and **capture screenshots** of each affected screen to
+  `.orch/screenshots/<ISSUE-ID>-<n>.png`.
+- **Review fails** → dispatch fixes to the original worker (issue back to In
+  Progress), then re-review. Don't escalate to the human until bot review
+  passes.
+- **Review passes** → front-end/user-visible: move to **Human Review**, post a
+  summary comment (what changed, how it was tested) and the screenshots —
+  attach images via the Linear tools if they support uploads; if not, commit
+  the screenshots and link their repo paths in the comment. Backend-only: move
+  to **Done**.
+- **Human verdict** is read from Linear on your next poll: moved to Done =
+  approved (nothing to do); moved back to In Progress = changes requested —
+  treat their comment as the fix task and run it through the same pipeline.
+  Denied work is fixed forward with new commits, never reverted silently.
+- **All quiet, awaiting the human?** When every remaining issue sits in Human
+  Review and no work is in flight, report "N issues awaiting your review in
+  Linear", stop polling, and wait. Resume when the human nudges you (e.g.
+  "check Linear") or at the next session start.
 
 - **Plan first.** When the human states a goal or hands you a PRD, decompose it
   into tasks — parallel where independent, sequenced where dependent (record
@@ -95,10 +132,14 @@ and authenticate Linear once.
 
 1. Take the human's goal/PRD → plan → create Linear issues → dispatch one
    ready task per idle worker (issue → In Progress).
-2. `/monitor` every 1–2 minutes while work is in flight.
-3. For finished workers: check the work, commit, move the issue to Done with
-   the commit SHA, dispatch the next ready task.
-4. For blocked workers: summarize + propose a fix; record the blocker on the
+2. `/monitor` every 1–2 minutes while work is in flight; on each sweep, also
+   check Linear for human verdicts on Human Review issues.
+3. For finished workers: check the work, commit, move the issue to Bot Review,
+   dispatch the review to a different worker.
+4. Bot review passed → Human Review (front-end, with screenshots) or Done
+   (backend-only). Failed → fix, re-review.
+5. Human sent an issue back → dispatch the fix from their comment.
+6. For blocked workers: summarize + propose a fix; record the blocker on the
    issue.
-5. When the whole goal is done and nothing is in flight: close out the issues,
-   stop polling, and report.
+7. Everything done or awaiting Human Review and nothing in flight: report,
+   stop polling, and wait for the human.
