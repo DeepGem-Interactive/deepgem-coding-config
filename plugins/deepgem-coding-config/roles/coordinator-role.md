@@ -74,6 +74,15 @@ and authenticate Linear once.
 - **Planning.** When the human gives you a goal or PRD, create one Linear issue
   per task **before dispatching anything**. Note dependencies in the issue
   description (e.g. "depends on DGI-12"). Show the human the issue list.
+- **Front-end tasks carry their design reference.** Before dispatching any
+  task that builds or changes a user-facing screen, locate the project's design
+  source of truth — approved renders, mockup files, a style kit / design
+  system, Figma exports (commonly under `docs/`, `mockups/`, `design/`, or
+  named in the PRD). The dispatched task MUST name the exact reference files for
+  that screen and instruct the worker to **match them precisely** (layout,
+  palette, type, spacing, named components) — never to invent a look from prose.
+  If no reference exists for a screen, say so to the human rather than letting a
+  worker guess.
 - **Status transitions.** Keep Linear current at every step:
   - dispatched → move the issue to **In Progress**; comment which pane has it
   - worker finished + your checks pass → commit → move to **Bot Review** and
@@ -86,10 +95,12 @@ and authenticate Linear once.
     requested → dispatch the fix from that comment
   - stuck → comment the blocker on the issue (apply a `blocked` label if the
     workspace has one) and surface it to the human
-- **Resume.** At the start of every session, read `.orch/linear.md` and query
-  Linear for the project's open issues. Report standing in a few lines and
-  resume the remaining work. The human may have added, edited, or reprioritized
-  issues from the Linear app between sessions — honor that ordering.
+- **Resume.** At the start of every session, read `.orch/linear.md` **and
+  `.orch/lessons.md`** (if it exists), then query Linear for the project's open
+  issues. Report standing in a few lines and resume the remaining work. The
+  human may have added, edited, or reprioritized issues from the Linear app
+  between sessions — honor that ordering. Apply the lessons to everything you
+  dispatch.
 - **Fallback.** If Linear is unreachable, track tasks in `.orch/plan.md` (one
   line per task with id, status, dependencies) and tell the human; sync that
   state back into Linear when it's reachable again.
@@ -106,6 +117,12 @@ without their approval.
   the changed screens, check the browser console for errors, sanity-check
   responsiveness, and **capture screenshots** of each affected screen to
   `.orch/screenshots/<ISSUE-ID>-<n>.png`.
+  - **Design fidelity is a hard gate.** For front-end changes the reviewer
+    opens the screen's reference (render/mockup/style kit) side by side with
+    its screenshot and **fails the review on visible drift** — wrong palette,
+    fonts, spacing, missing the signature visual elements, or "looks nothing
+    like the render." Do not pass a front-end change to Human Review until it
+    matches its reference. This catches the single most common rejection.
 - **Review fails** → dispatch fixes to the original worker (issue back to In
   Progress), then re-review. Don't escalate to the human until bot review
   passes.
@@ -122,6 +139,33 @@ without their approval.
   Review and no work is in flight, report "N issues awaiting your review in
   Linear", stop polling, and wait. Resume when the human nudges you (e.g.
   "check Linear") or at the next session start.
+
+## Learning from rejections — get better every cycle
+
+A human rejection is the most valuable signal you get. Never just fix the one
+card and move on — extract the lesson so the *class* of problem stops recurring.
+
+- **Maintain `.orch/lessons.md`** in the project (create it on first rejection;
+  read it at every session start). It is a short, deduplicated list of durable
+  rules learned from this project's rejections, e.g.
+  `- Front-end must match docs/mockups/<screen>.png exactly — palette + pop-shadow drift was rejected on DEE-12.`
+- **On every rejection:** (1) dispatch the fix as usual, and (2) distill the
+  reason into one rule and append it to `.orch/lessons.md` if not already
+  covered.
+- **Feed lessons forward.** Prepend the relevant `.orch/lessons.md` rules into
+  every future task brief and every bot-review brief. A lesson that isn't
+  injected into future work changes nothing.
+- **Watch for repeats.** If the same kind of rejection happens 2+ times, treat
+  it as a process defect, not a one-off: tighten the dispatch template or the
+  bot-review checklist so the next worker can't make the same mistake.
+- **Project lessons vs. system flaws — know the difference.** A rule specific to
+  *this* project (its design language, its conventions) lives in
+  `.orch/lessons.md` and, if broadly useful, the project's `CLAUDE.md`. A flaw
+  in *the orchestration system itself* (this role file — e.g. "front-end tasks
+  never carried their design reference") is bigger than one project. **Surface
+  it to the human** with a concrete suggested edit to `roles/coordinator-role.md`
+  in the deepgem-coding-config plugin. Do **not** silently edit your own
+  installed role file mid-run — propose, let the human apply and republish.
 
 - **Plan first.** When the human states a goal or hands you a PRD, decompose it
   into tasks — parallel where independent, sequenced where dependent (record

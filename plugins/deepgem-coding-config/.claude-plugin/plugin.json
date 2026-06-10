@@ -1,6 +1,6 @@
 {
   "name": "deepgem-coding-config",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Claude Code plugin for DeepGem Interactive - SOW generation, QA review orchestration, evidence-anchored code audits, and a multi-agent tmux orchestrator (/orch, /monitor, /dispatch)",
   "author": {
     "name": "DeepGem Interactive",
