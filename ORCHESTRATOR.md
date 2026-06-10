@@ -2,8 +2,9 @@
 
 One tmux session per project. A **Coordinator** Claude in the big left pane, three
 **worker** Claudes stacked on the right. You talk only to the Coordinator. It
-breaks your PRD into tasks, dispatches them to workers, checks the results,
-commits finished work, and tracks progress in a file that survives restarts.
+breaks your PRD into Linear issues, dispatches them to workers, checks the
+results, commits finished work, and moves the issues through Linear — so you
+can watch progress from the Linear app, and progress survives restarts.
 
 ## The flow
 
@@ -14,20 +15,24 @@ You ──PRD──▶ Coordinator ──tasks──▶ Workers (×3)
                  ▼
         verify → commit → next task
                  ▼
-        .orch/plan.md  (progress, survives restarts)
+        Linear issues  (Todo → In Progress → Done)
 ```
 
 1. **Start:** in a terminal, run `tmux`, then `claude`, then
    `/deepgem-coding-config:orch <project>` (add a path if the project isn't in
    `~/Coding projects/<project>`).
 2. **Brief it:** paste your PRD (or a file path to it) into the Coordinator pane.
-   It writes the task plan to `.orch/plan.md`, shows it, then starts dispatching.
+   First time in a project it asks which Linear team to use, then creates one
+   Linear issue per task, shows the plan, and starts dispatching.
 3. **Walk away.** The Coordinator polls workers every 1–2 minutes, verifies
-   finished work before committing, and re-tasks idle workers.
-4. **Check in:** ask the Coordinator "status?" or run `/monitor` yourself.
+   finished work before committing, marks issues Done with the commit SHA, and
+   re-tasks idle workers. Watch it all live in Linear.
+4. **Check in:** ask the Coordinator "status?", run `/monitor`, or just open
+   Linear.
 5. **Resume later:** rerun `/orch <project>` — it reattaches if the session is
-   alive, rebuilds if not. Either way the Coordinator reads `.orch/plan.md` and
-   picks up where it left off.
+   alive, rebuilds if not. Either way the Coordinator queries Linear for open
+   issues and picks up where it left off. Issues you add or reprioritize in
+   Linear between sessions are honored.
 
 ## Commands you need
 
@@ -51,6 +56,9 @@ You ──PRD──▶ Coordinator ──tasks──▶ Workers (×3)
 
 ## Tips
 
+- **Linear auth (one time):** the Linear MCP server is configured at user
+  scope. In any claude session run `/mcp`, pick **linear**, and complete the
+  OAuth login. Coordinators handle the rest.
 - **Workers stuck at permission prompts?** Launch with
   `ORCH_WORKER_CMD="claude --permission-mode acceptEdits"` for fewer
   interruptions (workers can then edit files without asking each time).

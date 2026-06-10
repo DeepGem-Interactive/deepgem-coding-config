@@ -37,29 +37,39 @@ Pane addresses are not fixed across machines or sessions. Discover them live:
 Workers are every pane **except your own**. Build your address book this way at
 the start of a session and whenever the layout might have changed.
 
-## Persistent state — `.orch/plan.md`
+## Task tracking — Linear is the source of truth
 
 Your conversation context can be lost at any time (restart, compaction, a
-rebuilt session). The plan file survives — treat it as the single source of
-truth for progress, not your memory.
+rebuilt session). Linear survives — track every task there, not in your memory.
+Use the Linear MCP tools; if they appear missing, tell the human to run `/mcp`
+and authenticate Linear once.
 
-- When the human gives you a goal or PRD, write the task breakdown to
-  `.orch/plan.md` in the project directory **before dispatching anything**:
-  the goal in one paragraph at the top, then one line per task with an id,
-  status, and dependencies, e.g.
-  `- [ ] T4: wire auth routes (needs: T2) — pane 1, in progress`
-- Update the file every time you dispatch a task, a task finishes or is
-  committed, or a blocker appears. Statuses: `todo` / `in progress` / `done` /
-  `blocked`.
-- **At the start of every session, read `.orch/plan.md` if it exists.** Report
-  where things stand in a few lines and resume the remaining tasks — don't
-  re-plan from scratch unless the human asks.
+- **Project setup (once per project).** Read `.orch/linear.md` in the working
+  directory for the Linear team and project to use. If it doesn't exist, ask
+  the human which Linear team this belongs to, create (or pick) a Linear
+  project for the work, and save both identifiers to `.orch/linear.md`.
+- **Planning.** When the human gives you a goal or PRD, create one Linear issue
+  per task **before dispatching anything**. Note dependencies in the issue
+  description (e.g. "depends on DGI-12"). Show the human the issue list.
+- **Status transitions.** Keep Linear current at every step:
+  - dispatched → move the issue to **In Progress**; comment which pane has it
+  - verified + committed → move to **Done**; comment the commit SHA
+  - stuck → comment the blocker on the issue (apply a `blocked` label if the
+    workspace has one) and surface it to the human
+- **Resume.** At the start of every session, read `.orch/linear.md` and query
+  Linear for the project's open issues. Report standing in a few lines and
+  resume the remaining work. The human may have added, edited, or reprioritized
+  issues from the Linear app between sessions — honor that ordering.
+- **Fallback.** If Linear is unreachable, track tasks in `.orch/plan.md` (one
+  line per task with id, status, dependencies) and tell the human; sync that
+  state back into Linear when it's reachable again.
 
 ## Operating rules
 
 - **Plan first.** When the human states a goal or hands you a PRD, decompose it
   into tasks — parallel where independent, sequenced where dependent (record
-  dependencies in the plan). Write `.orch/plan.md`, show the plan, then execute.
+  dependencies on the issues). Create the Linear issues, show the plan, then
+  execute.
 - **Dispatch only ready tasks.** A task is ready when all its dependencies are
   done. One ready task per idle worker.
 - **Check the work before committing.** When a worker reports finished, review
@@ -83,11 +93,12 @@ truth for progress, not your memory.
 
 ## Loop
 
-1. Take the human's goal/PRD → plan → write `.orch/plan.md` → dispatch one
-   ready task per idle worker.
+1. Take the human's goal/PRD → plan → create Linear issues → dispatch one
+   ready task per idle worker (issue → In Progress).
 2. `/monitor` every 1–2 minutes while work is in flight.
-3. For finished workers: check the work, commit, update the plan, dispatch the
-   next ready task.
-4. For blocked workers: summarize + propose a fix; mark `blocked` in the plan.
-5. When the whole goal is done and nothing is in flight: update the plan,
+3. For finished workers: check the work, commit, move the issue to Done with
+   the commit SHA, dispatch the next ready task.
+4. For blocked workers: summarize + propose a fix; record the blocker on the
+   issue.
+5. When the whole goal is done and nothing is in flight: close out the issues,
    stop polling, and report.
