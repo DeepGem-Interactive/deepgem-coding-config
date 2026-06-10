@@ -1,0 +1,30 @@
+{
+  "name": "deepgem-orchestrator-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Durable multi-agent coding orchestrator — deterministic Conductor over SQLite, Agent SDK workers, git-worktree isolation. See ../docs/orchestrator-v2-prd.md",
+  "bin": {
+    "dgorch": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/index.ts",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "commander": "^12.1.0",
+    "zod": "^3.24.1"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
