@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Task } from "./types.js";
+import { runClaude } from "./claude-cli.js";
 import { log } from "./logger.js";
 
 /** A planner turns a PRD + goal into a dependency-ordered set of tasks. */
@@ -54,20 +55,14 @@ export class FakePlanner implements Planner {
 }
 
 /**
- * Real planner backed by the Agent SDK with structured output. Asks Claude to
+ * Real planner over the `claude` CLI (see claude-cli.ts). Asks Claude to
  * decompose the PRD into independent, dependency-aware tasks and validates the
- * result against PlanSchema (retrying on malformed output).
+ * result against PlanSchema (retrying with the parse error fed back).
  */
-export class SdkPlanner implements Planner {
+export class CliPlanner implements Planner {
   constructor(private model?: string) {}
 
   async plan(prd: string, goal: string, runId: string): Promise<Task[]> {
-    let query: any;
-    try {
-      ({ query } = await import("@anthropic-ai/claude-agent-sdk"));
-    } catch (e) {
-      throw new Error("Agent SDK not installed; use --fake or install @anthropic-ai/claude-agent-sdk. " + String(e));
-    }
     const basePrompt = [
       `Decompose this work into a set of independent, parallelizable coding tasks.`,
       `Goal: ${goal}`,
@@ -82,27 +77,27 @@ export class SdkPlanner implements Planner {
       `Keep tasks small and non-overlapping in files where possible. Order by dependency.`,
     ].join("\n");
 
-    const MAX_TRIES = 3;
+    const MAX_TRIES = 5;
     let lastError = "";
     for (let attempt = 1; attempt <= MAX_TRIES; attempt += 1) {
       const prompt =
         attempt === 1
           ? basePrompt
           : `${basePrompt}\n\nYour previous reply could not be parsed (${lastError}). Reply again with ONLY the strict single-line-strings JSON object.`;
-      let raw = "";
-      for await (const msg of query({
-        prompt,
-        options: { permissionMode: "bypassPermissions", ...(this.model ? { model: this.model } : {}) },
-      }) as AsyncIterable<{ type: string; result?: string }>) {
-        if (msg.type === "result" && typeof msg.result === "string") raw = msg.result;
-      }
+      const r = await runClaude(prompt, { model: this.model, timeoutMs: 5 * 60 * 1000, allowEdits: false });
+      const raw = r.text;
       try {
         const parsed = PlanSchema.parse(extractJson(raw));
         log.info("planner produced tasks", { count: parsed.tasks.length, attempt });
         return planToTasks(parsed, runId);
       } catch (e) {
         lastError = String(e).slice(0, 300);
-        log.warn("planner reply unparseable — retrying", { attempt, error: lastError });
+        log.warn("planner reply unparseable — retrying", {
+          attempt,
+          error: lastError,
+          replyLen: r.text.length,
+          replyHead: r.text.slice(0, 160),
+        });
       }
     }
     throw new Error(`planner failed after ${MAX_TRIES} attempts: ${lastError}`);

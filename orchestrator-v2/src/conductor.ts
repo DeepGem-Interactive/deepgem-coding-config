@@ -177,10 +177,14 @@ export class Conductor {
       const result = await this.runner.run(spec, wt.path); // may THROW = crash
       this.store.addCost(this.runId, result.costTokens);
 
-      if (!result.ok) return this.fail(task, result.error ?? "worker reported failure");
-
+      // The committed worktree diff is the source of truth, NOT the worker's
+      // self-reported ok — the Agent SDK can report failure (or throw on exit)
+      // yet still have produced correct edits. If real changes exist, let the
+      // gates + reviewer judge them; only no-diff-at-all is a worker failure.
       const committed = await this.worktrees.commit(wt.path, `${task.title}\n\n[${task.assignee}] ${task.id}`);
-      if (!committed) return this.fail(task, "worker produced no changes");
+      if (!committed) {
+        return this.fail(task, result.ok ? "worker produced no changes" : result.error ?? "worker failed with no changes");
+      }
 
       const gateResults = await runGates(cfg.gates, wt.path, cfg.taskTimeoutMs);
       if (!gatesPassed(gateResults)) {

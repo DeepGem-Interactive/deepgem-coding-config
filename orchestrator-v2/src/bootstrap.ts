@@ -5,9 +5,9 @@ import { Store } from "./store.js";
 import { Conductor, type ConductorDeps } from "./conductor.js";
 import { WorktreeManager } from "./worktree.js";
 import { makeLinearSync } from "./linear.js";
-import { SdkAgentRunner, FakeAgentRunner, type AgentRunner } from "./agent.js";
-import { SdkReviewer } from "./reviewer.js";
-import { SdkPlanner, FakePlanner, type Plan } from "./planner.js";
+import { CliAgentRunner, FakeAgentRunner, type AgentRunner } from "./agent.js";
+import { CliReviewer } from "./reviewer.js";
+import { CliPlanner, FakePlanner, type Plan } from "./planner.js";
 import { resolveConfig } from "./config.js";
 import { serveLoop, type ServeOptions, type ServeOutcome } from "./serve.js";
 import type { Run, RunConfig } from "./types.js";
@@ -30,7 +30,7 @@ export function openStore(repoPath: string, dbPath?: string): Store {
 }
 
 function pickRunner(fake: boolean): AgentRunner {
-  return fake ? new FakeAgentRunner() : new SdkAgentRunner(process.env.ORCH_WORKER_MODEL);
+  return fake ? new FakeAgentRunner() : new CliAgentRunner(process.env.ORCH_WORKER_MODEL);
 }
 
 export function buildDeps(store: Store, repoPath: string, opts: { fake?: boolean; lessons?: string[] } = {}): ConductorDeps {
@@ -42,7 +42,7 @@ export function buildDeps(store: Store, repoPath: string, opts: { fake?: boolean
     worktrees: new WorktreeManager(repoPath),
     // Real runs get the SDK bot reviewer unless explicitly disabled; fake runs
     // keep the default auto-approve (tests inject their own).
-    ...(fake || process.env.ORCH_BOT_REVIEW === "0" ? {} : { reviewer: new SdkReviewer(process.env.ORCH_REVIEWER_MODEL) }),
+    ...(fake || process.env.ORCH_BOT_REVIEW === "0" ? {} : { reviewer: new CliReviewer(process.env.ORCH_REVIEWER_MODEL) }),
     lessons: opts.lessons ?? [],
   };
 }
@@ -65,7 +65,7 @@ export async function createRunWithPlan(store: Store, opts: StartOptions): Promi
   store.createRun(run);
   store.appendJournal(runId, "run_start", { goal: opts.goal, prdPath: opts.prdPath });
 
-  const planner = opts.fake ? new FakePlanner(loadPlan(opts.planPath)) : new SdkPlanner(process.env.ORCH_PLANNER_MODEL);
+  const planner = opts.fake ? new FakePlanner(loadPlan(opts.planPath)) : new CliPlanner(process.env.ORCH_PLANNER_MODEL);
   const tasks = await planner.plan(prd, opts.goal, runId);
   store.insertTasks(tasks);
   log.info("planned tasks", { count: tasks.length, runId });

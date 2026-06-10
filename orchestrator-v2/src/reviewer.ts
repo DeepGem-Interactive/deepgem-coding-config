@@ -1,6 +1,7 @@
 import type { Reviewer } from "./conductor.js";
 import type { Task } from "./types.js";
 import { git } from "./exec.js";
+import { runClaude } from "./claude-cli.js";
 import { log } from "./logger.js";
 
 /** Cap on diff text sent to the reviewer model. */
@@ -79,53 +80,22 @@ function cap(text: string, max: number): string {
   return `${text.slice(0, max)}\n[... diff truncated at ${max} chars ...]`;
 }
 
-/** Shape of the Agent SDK stream messages we care about. */
-interface SdkReviewMessage {
-  type: string;
-  result?: unknown;
-}
-
 /**
- * Real bot reviewer, backed by the Claude Agent SDK. Reads the last commit's
- * diff in the worker's workspace and asks a reviewer agent for a verdict.
- * Lazy-imported so the SDK stays an optional dependency.
+ * Real bot reviewer over the `claude` CLI (see claude-cli.ts). Reads the last
+ * commit's diff in the worker's workspace and asks a reviewer for a verdict.
  */
-export class SdkReviewer implements Reviewer {
+export class CliReviewer implements Reviewer {
   constructor(private model?: string) {}
 
   async review(task: Task, workspace: string): Promise<{ approved: boolean; notes: string }> {
     const { stat, diff } = await this.collectDiff(workspace);
-
-    let query: unknown;
-    try {
-      ({ query } = await import("@anthropic-ai/claude-agent-sdk"));
-    } catch (e) {
-      throw new Error(
-        'SdkReviewer requires "@anthropic-ai/claude-agent-sdk". ' +
-          "`npm i @anthropic-ai/claude-agent-sdk`, or plug in FakeReviewer/AutoApproveReviewer instead. " +
-          String(e),
-      );
-    }
-
     const prompt = buildReviewPrompt(task, stat, diff);
-    const iterator = (
-      query as (a: { prompt: string; options: Record<string, unknown> }) => AsyncIterable<SdkReviewMessage>
-    )({
-      prompt,
-      options: {
-        permissionMode: "bypassPermissions",
-        cwd: workspace,
-        ...(this.model ? { model: this.model } : {}),
-      },
-    });
-
-    // Take the LAST message with type === "result" and a string .result.
-    let reply = "";
-    for await (const msg of iterator) {
-      if (msg.type === "result" && typeof msg.result === "string") reply = msg.result;
+    const r = await runClaude(prompt, { cwd: workspace, model: this.model, timeoutMs: 5 * 60 * 1000, allowEdits: false });
+    if (!r.ok && !r.text) {
+      // Reviewer couldn't run at all — fail safe (do not silently approve).
+      return { approved: false, notes: "reviewer failed to produce a verdict" };
     }
-
-    const verdict = parseReviewVerdict(reply);
+    const verdict = parseReviewVerdict(r.text);
     log.debug("bot review verdict", { taskId: task.id, approved: verdict.approved, notes: verdict.notes });
     return verdict;
   }

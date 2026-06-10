@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import type { AgentResult, TaskSpec } from "./types.js";
+import { runClaude } from "./claude-cli.js";
 import { log } from "./logger.js";
 
 /**
@@ -38,75 +39,33 @@ export function buildWorkerPrompt(spec: TaskSpec): string {
 }
 
 /**
- * Real worker, backed by the Claude Agent SDK. Lazy-imported so the package is
- * optional and the rest of the system builds/tests without it.
+ * Real worker, backed by the `claude` CLI in print mode (see claude-cli.ts for
+ * why we shell out instead of using the Agent SDK's query() wrapper). The agent
+ * edits files directly in its isolated workspace; the conductor judges the
+ * result by the actual worktree diff + gates, not by self-report.
  */
-export class SdkAgentRunner implements AgentRunner {
-  constructor(private model?: string) {}
+export class CliAgentRunner implements AgentRunner {
+  constructor(
+    private model?: string,
+    private timeoutMs = 20 * 60 * 1000,
+  ) {}
 
   async run(spec: TaskSpec, workspace: string): Promise<AgentResult> {
-    let query: unknown;
-    try {
-      ({ query } = await import("@anthropic-ai/claude-agent-sdk"));
-    } catch (e) {
-      throw new Error(
-        "Agent SDK not installed. `npm i @anthropic-ai/claude-agent-sdk`, or run with --fake for a dry run. " +
-          String(e),
-      );
-    }
     const prompt = buildWorkerPrompt(spec);
-    const filesChanged = new Set<string>();
-    let costTokens = 0;
-    let summary = "";
-    let ok = true;
-    let error: string | undefined;
-
-    // The SDK streams messages; we run the agent inside the isolated workspace
-    // with edit tools enabled, and collect a structured result.
-    const iterator = (query as (a: {
-      prompt: string;
-      options: Record<string, unknown>;
-    }) => AsyncIterable<SdkMessage>)({
-      prompt,
-      options: {
-        cwd: workspace,
-        permissionMode: "bypassPermissions",
-        ...(this.model ? { model: this.model } : {}),
-      },
+    const r = await runClaude(prompt, {
+      cwd: workspace,
+      model: this.model,
+      timeoutMs: this.timeoutMs,
+      allowEdits: true,
     });
-
-    try {
-      for await (const msg of iterator) {
-        if (msg.type === "assistant" && typeof msg.text === "string") summary = msg.text;
-        if (msg.type === "tool_use" && msg.name && /edit|write/i.test(msg.name) && msg.input?.file_path) {
-          filesChanged.add(String(msg.input.file_path));
-        }
-        if (msg.type === "result") {
-          costTokens = msg.usage?.output_tokens ?? 0;
-          if (msg.subtype && msg.subtype !== "success") {
-            ok = false;
-            error = `agent ended: ${msg.subtype}`;
-          }
-          if (typeof msg.result === "string" && msg.result) summary = msg.result;
-        }
-      }
-    } catch (e) {
-      ok = false;
-      error = String(e);
-    }
-
-    return { ok, summary: summary || "(no summary)", filesChanged: [...filesChanged], costTokens, error };
+    return {
+      ok: r.ok,
+      summary: (r.text || "(no summary)").slice(0, 4000),
+      filesChanged: [], // worktree git diff is the source of truth, not self-report
+      costTokens: r.outputTokens,
+      error: r.ok ? undefined : r.text.slice(0, 300),
+    };
   }
-}
-
-interface SdkMessage {
-  type: string;
-  subtype?: string;
-  text?: string;
-  name?: string;
-  input?: { file_path?: string };
-  result?: string;
-  usage?: { output_tokens?: number };
 }
 
 /**
