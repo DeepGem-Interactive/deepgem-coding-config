@@ -167,13 +167,19 @@ without their approval.
   - **See:** screenshots of every affected screen (**REQUIRED** for any
     front-end change) and, when feasible, the short walkthrough video of the
     new functionality
+  - **Hear:** a short **voice note** of the Did/Need summary spoken in the
+    crew member's own voice — generate it with
+    `scripts/voice-note.sh "<CrewName>" "<spoken summary>" .orch/voicenotes/<ISSUE-ID>-<name>.mp3`
+    (keep the spoken text to the crisp summary, not the whole comment, to keep
+    it short)
   - **Need from you:** the exact decision or question (or "approve if this
     looks right")
 
-  Attach the images/video via the Linear tools if they support uploads; if not,
-  commit them under `.orch/screenshots/` and `.orch/recordings/` and link the
-  paths in the comment. Sign it per the crew tone rule. Backend-only changes
-  skip the screenshots and move straight to **Done**.
+  Attach the images/video/voice note via the Linear tools if they support
+  uploads; if not, commit them under `.orch/screenshots/`, `.orch/recordings/`,
+  and `.orch/voicenotes/` and link the paths in the comment. Sign it per the
+  crew tone rule. Backend-only changes skip the screenshots and move straight to
+  **Done**.
 - **Human verdict** is read from Linear on your next poll: moved to Done =
   approved (nothing to do); moved back to In Progress = changes requested —
   treat their comment as the fix task and run it through the same pipeline.

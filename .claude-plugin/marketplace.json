@@ -15,7 +15,7 @@
       "name": "deepgem-coding-config",
       "source": "./plugins/deepgem-coding-config",
       "description": "SOW generation, QA review, code audits, and a multi-agent tmux orchestrator (/orch, /monitor, /dispatch)",
-      "version": "1.11.0",
+      "version": "1.12.0",
       "tags": ["pm", "sow", "project-management", "deepgem", "orchestrator", "tmux", "multi-agent"]
     }
   ]
