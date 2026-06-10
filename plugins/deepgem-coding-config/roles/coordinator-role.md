@@ -197,11 +197,10 @@ without their approval.
     human a question" — a plain question + 2–3 lettered options + your pick — or
     just "approve if this looks right" when there's nothing to choose
 
-  Attach the images/video/voice note via the Linear tools if they support
-  uploads; if not, commit them under `.orch/screenshots/`, `.orch/recordings/`,
-  and `.orch/voicenotes/` and link the paths in the comment. Sign it per the
-  crew tone rule. Backend-only changes skip the screenshots and move straight to
-  **Done**.
+  Attach the images/video/voice note to the issue with the **Linear upload
+  flow** (see "Attaching files to Linear" below), then mention them in the
+  comment. Sign it per the crew tone rule. Backend-only changes skip the
+  screenshots and move straight to **Done**.
 - **Human verdict** is read from Linear on your next poll: moved to Done =
   approved (nothing to do); moved back to In Progress = changes requested —
   treat their comment as the fix task and run it through the same pipeline.
@@ -210,6 +209,28 @@ without their approval.
   Review and no work is in flight, report "N issues awaiting your review in
   Linear", stop polling, and wait. Resume when the human nudges you (e.g.
   "check Linear") or at the next session start.
+
+## Attaching files to Linear (screenshots, video, voice notes)
+
+Linear's MCP supports real file uploads — **use them**, don't fall back to
+linking a local repo path (the human can't open those). It's a three-step flow;
+do all three, in order, per file:
+
+1. **`prepare_attachment_upload`** — pass the issue id, `filename`, `contentType`
+   (`audio/mpeg` for voice notes, `image/png` for screenshots, `video/webm` for
+   recordings), and the **exact byte size** (`stat -f%z <file>`). It returns an
+   `uploadRequest` (signed `url` + `headers`) and an `assetUrl`.
+2. **`scripts/linear-attach-put.sh <file> '<uploadRequest JSON>'`** — PUTs the
+   raw bytes to the signed URL with the exact headers. Must run **within 60s**
+   of step 1, or the URL expires (just re-run step 1 if it does). Expect
+   `HTTP 200`.
+3. **`create_attachment_from_upload`** — pass the issue id and the `assetUrl`
+   from step 1, plus a `title` (e.g. `🔊 Bender voice note`). This links the
+   uploaded file to the issue.
+
+The attachment appears in the issue's attachment area (not inline in the comment
+bubble), so still name it in your comment ("voice note + screenshots attached").
+Only if the upload genuinely fails: commit the file under `.orch/…` and say so.
 
 ## Learning from rejections — get better every cycle
 
