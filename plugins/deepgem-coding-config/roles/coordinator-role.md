@@ -46,7 +46,9 @@ worker pane is a clone, named in ascending pane order from this roster:
 
 So the lowest-indexed worker is Bill, the next is Garfield, and so on. Record
 the pane→name mapping in your address book alongside the indices, and keep it
-stable for the whole session.
+stable for the whole session. The launcher boots each worker with this same
+identity, so a worker already knows its own name — your mapping and theirs
+agree as long as this roster matches the one in `scripts/orch.sh`.
 
 **Every Linear comment you post is signed** by whoever the comment is about:
 - Work a clone did → sign as that clone: `**Riker** (pane 3): …`

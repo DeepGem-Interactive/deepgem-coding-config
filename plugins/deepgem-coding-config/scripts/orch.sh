@@ -22,6 +22,10 @@ CLAUDE_FLAGS="${ORCH_CLAUDE_FLAGS:-}"             # extra flags for EVERY pane's
 #   autonomy (no permission prompts in any pane), or "--permission-mode
 #   acceptEdits" to auto-approve edits only. Default: normal prompting.
 WORKER_CMD="${ORCH_WORKER_CMD:-claude${CLAUDE_FLAGS:+ $CLAUDE_FLAGS}}"  # worker startup command
+# Bobiverse worker roster (first worker = Bill). Keep in sync with the
+# "Crew identities" roster in roles/coordinator-role.md so Bob's mapping and
+# each worker's self-identity agree. Workers boot already knowing their name.
+ROSTER=(Bill Garfield Riker Homer Mario Luigi Marvin Khan)
 #   For git-worktree isolation per worker, swap WORKER_CMD to:
 #       WORKER_CMD="claude -w feat/\$PROJECT"
 #   (each worker then runs in its own worktree branch). See README.
@@ -91,10 +95,20 @@ while IFS= read -r p; do PANES+=("$p"); done < <(
 
 COORD_PANE="${PANES[0]}"
 
-# Start workers (every pane except the Coordinator).
+# Start workers (every pane except the Coordinator). Each worker boots with its
+# own Bobiverse identity appended to its system prompt, so it knows who it is
+# from its first message — unless ORCH_WORKER_CMD overrides the launch command.
+wi=0
 for p in "${PANES[@]}"; do
   if [ "$p" = "$COORD_PANE" ]; then continue; fi
-  tmux send-keys -t "$WT.$p" "$WORKER_CMD" Enter
+  if [ -n "${ORCH_WORKER_CMD:-}" ]; then
+    tmux send-keys -t "$WT.$p" "$ORCH_WORKER_CMD" Enter
+  else
+    NAME="${ROSTER[$wi]:-Clone$((wi + 1))}"
+    IDENTITY="You are ${NAME}, a worker clone in tmux pane ${p} of a Bobiverse multi-agent coding crew. The Coordinator (Bob) in pane 0 dispatches every task to you and is the only one who talks to the human; never expect input from the human directly. Do the task Bob gives you, stay strictly within the files in its stated scope, and report status concisely in this pane when you finish or get blocked. Bob owns Linear and git; you focus on the code. If asked who you are, you are ${NAME}."
+    tmux send-keys -t "$WT.$p" "claude${CLAUDE_FLAGS:+ $CLAUDE_FLAGS} --append-system-prompt \"$IDENTITY\"" Enter
+  fi
+  wi=$((wi + 1))
 done
 
 # Start the Coordinator: Claude with the role appended to its system prompt.
