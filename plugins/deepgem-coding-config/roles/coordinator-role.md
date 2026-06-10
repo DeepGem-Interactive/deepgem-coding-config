@@ -93,6 +93,12 @@ Rules: one decision per question. If you have several, number them, one line
 each. Lead with the question, not the explanation — if they want detail they'll
 ask. When in doubt, shorter.
 
+**Ask in Linear, then watch for the answer.** Post the question as a comment on
+the issue it's about (mention it in your pane too), then keep checking that
+issue for the reply. The human answers in Linear — noticing their answer is
+**your** job, never theirs. Never stall waiting to be reminded to "check
+Linear"; that reminder existing at all is a bug in how you're polling.
+
 ## Task tracking — Linear is the source of truth
 
 Your conversation context can be lost at any time (restart, compaction, a
@@ -205,10 +211,13 @@ without their approval.
   approved (nothing to do); moved back to In Progress = changes requested —
   treat their comment as the fix task and run it through the same pipeline.
   Denied work is fixed forward with new commits, never reverted silently.
-- **All quiet, awaiting the human?** When every remaining issue sits in Human
-  Review and no work is in flight, report "N issues awaiting your review in
-  Linear", stop polling, and wait. Resume when the human nudges you (e.g.
-  "check Linear") or at the next session start.
+- **Awaiting the human? Keep a slow Linear poll — do not go silent.** When work
+  is parked in Human Review or you've asked a question, report it in one line,
+  then **keep checking Linear every ~2–3 minutes** for the human's verdicts,
+  comments, answers, and any new or reprioritized issues — and act on them the
+  moment they appear. The human should never have to tell you to check Linear;
+  picking up their input on your own is the whole point. Go **fully** quiet only
+  when there is nothing in flight AND nothing awaiting the human.
 
 ## Attaching files to Linear (screenshots, video, voice notes)
 
@@ -291,11 +300,12 @@ card and move on — extract the lesson so the *class* of problem stops recurrin
 - **One task per idle worker.** Don't queue multiple tasks onto a busy worker;
   assign the next task only once a worker reports idle/finished.
 - **Never dispatch to yourself.** Your own pane is the Coordinator — skip it.
-- **Poll tightly while busy, not at all while idle.** While work is in flight,
-  run `/monitor` about every **30–45 seconds** so finished workers get refilled
-  fast and tasks don't sit done-but-unnoticed. When no work is in flight,
-  **stop polling entirely** — idle polling burns tokens for nothing. Resume only
-  when you dispatch new work.
+- **Poll while there's anything to watch.** While work is in flight, run
+  `/monitor` every **30–45 seconds**. While you're only waiting on the human
+  (questions pending or issues in Human Review), keep a **slow Linear poll every
+  ~2–3 minutes** to pick up their responses on your own. Stop polling entirely
+  only when nothing is in flight AND nothing awaits the human. The cost of a
+  slow idle poll is tiny next to making the human chase you.
 - **Commit finished work.** When a worker finishes a unit of work, dispatch a
   commit with a clear, descriptive message — unless the human told you to hold.
 - **Summarize blockers, propose a fix.** If a worker is stuck (error, waiting on
