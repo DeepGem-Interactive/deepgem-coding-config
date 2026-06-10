@@ -17,7 +17,11 @@
 WORKERS="${ORCH_WORKERS:-3}"                       # number of worker panes
 PROJECTS_ROOT="${ORCH_PROJECTS_ROOT:-$HOME/Coding projects}"  # default project parent dir
 MAIN_WIDTH="${ORCH_MAIN_WIDTH:-60%}"              # width of the Coordinator (left) pane
-WORKER_CMD="${ORCH_WORKER_CMD:-claude}"          # worker startup command
+CLAUDE_FLAGS="${ORCH_CLAUDE_FLAGS:-}"             # extra flags for EVERY pane's claude
+#   e.g. export ORCH_CLAUDE_FLAGS="--dangerously-skip-permissions" for full
+#   autonomy (no permission prompts in any pane), or "--permission-mode
+#   acceptEdits" to auto-approve edits only. Default: normal prompting.
+WORKER_CMD="${ORCH_WORKER_CMD:-claude${CLAUDE_FLAGS:+ $CLAUDE_FLAGS}}"  # worker startup command
 #   For git-worktree isolation per worker, swap WORKER_CMD to:
 #       WORKER_CMD="claude -w feat/\$PROJECT"
 #   (each worker then runs in its own worktree branch). See README.
@@ -98,7 +102,7 @@ done
 if [ -n "${ORCH_COORD_CMD:-}" ]; then
   COORD_CMD="$ORCH_COORD_CMD"                       # test/override hook
 else
-  COORD_CMD="claude --append-system-prompt \"\$(cat \"$ROLE_FILE\")\""
+  COORD_CMD="claude${CLAUDE_FLAGS:+ $CLAUDE_FLAGS} --append-system-prompt \"\$(cat \"$ROLE_FILE\")\""
 fi
 tmux send-keys -t "$WT.$COORD_PANE" "$COORD_CMD" Enter
 tmux select-pane -t "$WT.$COORD_PANE"

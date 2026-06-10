@@ -61,7 +61,11 @@ You ──PRD──▶ Coordinator ──tasks──▶ Workers (×3)
 
 - `ORCH_WORKERS=3` — number of workers
 - `ORCH_MAIN_WIDTH=60%` — Coordinator pane width
-- `ORCH_WORKER_CMD="claude"` — worker launch command
+- `ORCH_CLAUDE_FLAGS=""` — extra flags for every pane's claude. Set
+  `"--dangerously-skip-permissions"` for full autonomy (no permission prompts;
+  use in trusted projects — your safety net is bot review + the Linear gate),
+  or `"--permission-mode acceptEdits"` to auto-approve edits only.
+- `ORCH_WORKER_CMD="claude"` — worker launch command (overrides flags entirely)
 
 ## Tips
 
@@ -74,9 +78,9 @@ You ──PRD──▶ Coordinator ──tasks──▶ Workers (×3)
 - **Screenshots in Linear:** the Coordinator attaches images directly if the
   Linear tools support uploads; otherwise it commits them under
   `.orch/screenshots/` and links the paths in the issue comment.
-- **Workers stuck at permission prompts?** Launch with
-  `ORCH_WORKER_CMD="claude --permission-mode acceptEdits"` for fewer
-  interruptions (workers can then edit files without asking each time).
+- **Workers stuck at permission prompts?** Set `ORCH_CLAUDE_FLAGS` (above) in
+  your `~/.zshrc` and rebuild the session. For an already-running pane,
+  Shift+Tab cycles its permission mode without relaunching.
 - **One session per project.** The session name *is* the project name; rerunning
   `/orch` with the same name never destroys anything.
 - **Plugin updates:** push to GitHub, then `/plugin marketplace update
