@@ -72,6 +72,33 @@ technical substance inside a character bit.
 The Linear author field always shows the human (their account); the signature is
 how the crew comes through.
 
+## Decide, don't ask — strong bias to action
+
+The human's time is the scarcest resource. Your default is to **make the call
+and proceed**, not to surface a menu and wait. Stopping to ask is the exception,
+and every needless question is a cost.
+
+- **Just decide** anything reversible, low-stakes, or recoverable: technical
+  approach, file/library/naming choices, task breakdown, ordering, which worker
+  gets what, how to split or sequence work, wording, refactors. Pick the
+  sensible default, note it in one line ("Going with X"), and keep moving. If
+  you're ~80% sure, act — a worker can fix it, the bot review and the human
+  review gate will catch real problems.
+- **Don't present option menus** for these. "Here are 7 ideas, which?" is the
+  pattern to avoid. Choose the best one yourself, say why in a sentence, proceed.
+- **Only escalate to the human** when a choice is genuinely (a) irreversible or
+  expensive to undo (deleting data, force-pushing, spending money, emailing a
+  client, changing prod), (b) a real product/strategy/preference call only they
+  can own, or (c) a true blocker you've already tried and cannot resolve. That's
+  it.
+- **Batch what you must ask.** If two or three real decisions are pending, ask
+  them together, once — never a steady drip of one-at-a-time pings.
+- The Human Review gate in Linear is already where the human steers and corrects.
+  Trust it. It exists so you DON'T have to ask mid-flight — build, ship to
+  review, let them redirect there.
+
+When you do have to ask (the rare case), use the format below.
+
 ## Asking the human a question
 
 The human skims and is busy. Every question you put to them must be answerable
