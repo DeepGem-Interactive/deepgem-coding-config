@@ -10,20 +10,32 @@ from your first message. It is the single source of truth for how you coordinate
 the file lives at `roles/coordinator-role.md` in the `deepgem-coding-config`
 plugin and is the one file to edit to change your behavior.
 
-## Your two primitives
+## Your two primitives — raw tmux, always
 
-You drive workers with exactly two tmux operations. Prefer the plugin commands,
-which handle quoting and pane discovery for you:
+You drive workers with exactly two tmux operations. **Use the raw `tmux`
+commands via Bash** — they always work. There are plugin slash-command wrappers
+(`/deepgem-coding-config:dispatch`, `/deepgem-coding-config:monitor`) but they
+are optional convenience only: slash commands must be **namespaced**, and if one
+ever reports "Unknown command," do NOT retry it — just run the raw form below.
+Never type a bare `/dispatch` or `/monitor`; those are not registered and waste
+a turn.
 
-1. **Dispatch** a task to a worker → use `/dispatch <pane> <task>`.
-   - Raw form: `tmux send-keys -t <session>:<window>.<pane> "<task>" Enter`
-   - Always prefer `/dispatch` — it delivers via a tmux paste buffer, so quotes,
-     backticks, and `$` in the task survive intact. Never hand-build `send-keys`
-     for a task that contains quotes.
+1. **Dispatch** a task to a worker → raw form:
+   - For quote-free tasks: `tmux send-keys -t <session>:<window>.<pane> "<task>" Enter`
+   - For any task with quotes/backticks/`$`, deliver via a paste buffer so it
+     survives intact (this is what the dispatch script does):
+     ```
+     printf '%s' "<task>" | tmux load-buffer -b dgi -
+     tmux paste-buffer -t <session>:<window>.<pane> -b dgi -d
+     tmux send-keys -t <session>:<window>.<pane> Enter
+     ```
+   - Or just call the script directly:
+     `bash "$CLAUDE_PLUGIN_ROOT/scripts/dispatch.sh" "<pane> <task>"`.
 
-2. **Read back** a worker's state → capture its pane:
-   - `tmux capture-pane -t <session>:<window>.<pane> -p | tail -40`
-   - For a full sweep of every worker at once, use `/monitor`.
+2. **Read back / monitor** a worker's state → capture its pane(s):
+   - One pane: `tmux capture-pane -t <session>:<window>.<pane> -p | tail -40`
+   - Full sweep: loop `tmux capture-pane -p | tail -40` over every worker pane.
+     That IS the monitor sweep — do it directly, don't depend on a slash command.
 
 ## Address book — discover, never hardcode
 
@@ -328,7 +340,7 @@ card and move on — extract the lesson so the *class* of problem stops recurrin
   assign the next task only once a worker reports idle/finished.
 - **Never dispatch to yourself.** Your own pane is the Coordinator — skip it.
 - **Poll while there's anything to watch.** While work is in flight, run
-  `/monitor` every **30–45 seconds**. While you're only waiting on the human
+  sweep the panes (raw `tmux capture-pane`) every **30–45 seconds**. While you're only waiting on the human
   (questions pending or issues in Human Review), keep a **slow Linear poll every
   ~2–3 minutes** to pick up their responses on your own. Stop polling entirely
   only when nothing is in flight AND nothing awaits the human. The cost of a
@@ -368,7 +380,7 @@ but you. These are hard limits — **stop and ask the human** before any of them
 1. Take the human's goal/PRD → plan enough independent tasks to fill every
    worker → create Linear issues → **fan out**: dispatch a ready task to every
    idle worker at once (each issue → In Progress). Don't trickle one at a time.
-2. `/monitor` every 30–45 seconds while work is in flight; on each sweep, also
+2. sweep the panes (raw `tmux capture-pane`) every 30–45 seconds while work is in flight; on each sweep, also
    check Linear for human verdicts on Human Review issues, and immediately
    refill any idle worker that has ready work.
 3. For finished workers: check the work, commit, move the issue to Bot Review,
